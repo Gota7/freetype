@@ -1,11 +1,13 @@
 const std = @import("std");
 
+const freetype_dir = "freetype-2.14.3";
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const libpng_enabled = b.option(bool, "enable-libpng", "Build libpng") orelse false;
 
-    const upstream = b.dependency("freetype", .{});
+    const upstream = b.path(freetype_dir);
     const lib = b.addLibrary(.{
         .name = "freetype",
         .linkage = .static,
@@ -15,7 +17,7 @@ pub fn build(b: *std.Build) !void {
             .link_libc = true,
         }),
     });
-    lib.root_module.addIncludePath(upstream.path("include"));
+    lib.root_module.addIncludePath(upstream.path(b, "include"));
 
     if (b.systemIntegrationOption("zlib", .{})) {
         lib.root_module.linkSystemLibrary("z", .{});
@@ -53,43 +55,43 @@ pub fn build(b: *std.Build) !void {
     if (libpng_enabled) try flags.append(b.allocator, "-DFT_CONFIG_OPTION_USE_PNG=1");
 
     lib.root_module.addCSourceFiles(.{
-        .root = upstream.path(""),
+        .root = upstream,
         .files = srcs,
         .flags = flags.items,
     });
 
     switch (target.result.os.tag) {
         .linux => lib.root_module.addCSourceFile(.{
-            .file = upstream.path("builds/unix/ftsystem.c"),
+            .file = upstream.path(b, "builds/unix/ftsystem.c"),
             .flags = flags.items,
         }),
         .windows => lib.root_module.addCSourceFile(.{
-            .file = upstream.path("builds/windows/ftsystem.c"),
+            .file = upstream.path(b, "builds/windows/ftsystem.c"),
             .flags = flags.items,
         }),
         else => lib.root_module.addCSourceFile(.{
-            .file = upstream.path("src/base/ftsystem.c"),
+            .file = upstream.path(b, "src/base/ftsystem.c"),
             .flags = flags.items,
         }),
     }
     switch (target.result.os.tag) {
         .windows => {
             lib.root_module.addCSourceFile(.{
-                .file = upstream.path("builds/windows/ftdebug.c"),
+                .file = upstream.path(b, "builds/windows/ftdebug.c"),
                 .flags = flags.items,
             });
             lib.root_module.addWin32ResourceFile(.{
-                .file = upstream.path("src/base/ftver.rc"),
+                .file = upstream.path(b, "src/base/ftver.rc"),
             });
         },
         else => lib.root_module.addCSourceFile(.{
-            .file = upstream.path("src/base/ftdebug.c"),
+            .file = upstream.path(b, "src/base/ftdebug.c"),
             .flags = flags.items,
         }),
     }
 
     lib.installHeadersDirectory(
-        upstream.path("include"),
+        upstream.path(b, "include"),
         "",
         .{ .include_extensions = &.{".h"} },
     );
